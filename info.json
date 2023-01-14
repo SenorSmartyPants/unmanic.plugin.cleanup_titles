@@ -4,10 +4,10 @@
         1,
         2
     ],
-    "description": "Remove or replace global and stream titles",
+    "description": "Clean stream titles based on regular expressions.",
     "icon": "https://raw.githubusercontent.com/SenorSmartyPants/unmanic.plugin.cleanup_titles/main/icon.png",
     "id": "cleanup_titles",
-    "name": "Remove or replace global and stream titles",
+    "name": "Clean stream titles",
     "platform": [
         "all"
     ],
