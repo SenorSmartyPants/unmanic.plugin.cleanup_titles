@@ -1,0 +1,20 @@
+{
+    "author": "SenorSmartyPants, Josh.5",
+    "compatibility": [
+        1,
+        2
+    ],
+    "description": "Remove or replace global and stream titles",
+    "icon": "https://raw.githubusercontent.com/SenorSmartyPants/unmanic.plugin.cleanup_titles/main/icon.png",
+    "id": "cleanup_titles",
+    "name": "Remove or replace global and stream titles",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_library_management_file_test": 90,
+        "on_worker_process": 1
+    },
+    "tags": "metadata,ffmpeg,library file test",
+    "version": "0.0.1"
+}
