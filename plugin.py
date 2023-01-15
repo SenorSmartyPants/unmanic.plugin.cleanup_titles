@@ -204,7 +204,8 @@ def on_library_management_file_test(data):
     # Set the input file
     mapper.set_input_file(abspath)
 
-    if mapper.streams_need_processing() or mapper.global_title or test_single_streams(settings, mapper):
+    # use | instead of 'or' so test doesn't short circuit.
+    if mapper.streams_need_processing() | bool(mapper.global_title) | test_single_streams(settings, mapper):
         # Mark this file to be added to the pending tasks
         data['add_file_to_pending_tasks'] = True
         logger.debug("File '{}' should be added to task list. Probe found streams require processing.".format(abspath))
@@ -259,7 +260,8 @@ def on_worker_process(data):
     # Set the input file
     mapper.set_input_file(abspath)
 
-    if mapper.streams_need_processing() or mapper.global_title or test_single_streams(settings, mapper):
+    # use | instead of 'or' so test doesn't short circuit.
+    if mapper.streams_need_processing() | bool(mapper.global_title) | test_single_streams(settings, mapper):
         # Set the output file
         mapper.set_output_file(data.get('file_out'))
 
