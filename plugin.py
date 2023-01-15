@@ -88,68 +88,85 @@ class PluginStreamMapper(StreamMapper):
     def __init__(self):
         super(PluginStreamMapper, self).__init__(logger, ['video','audio','subtitle'])
 
+        self.global_title = []
         self.extraoptions = []
+        self.title_options = []
+
+        self.stream_title_exists = {}
 
         self.settings = None
 
     def set_settings(self, settings):
         self.settings = settings
+        try:
+            self.title_options = json.loads(self.settings.get_setting('title_regex'))
+        except ValueError:
+            logger.debug("Title replacement options are not valid JSON.")
 
     def test_stream_needs_processing(self, stream_info: dict):
-        """Only add streams that have title """
-        if stream_info.get('tags', {}).get('title'):
-            # stream has a title
-            return True
-        else:
-            logger.warning(
-                "Stream #{} in file '{}' has no 'title' tag. Ignoring".format(stream_info.get('index'), self.input_file))
+        self.set_global_title(stream_info)
+
+        title = stream_info.get('tags', {}).get('title')
+        if title:
+            codec_type = stream_info.get('codec_type', '').lower()
+
+            # save that a title for this stream type exists
+            self.stream_title_exists[codec_type] = True
+
+            """Only add streams that have title that match regex """
+            if self.title_options:
+                # stream_id doesn't matter hear since encodings are not used
+                if self.test_stream_regex_results(stream_info, 0)['match']:
+                    return True
+                else:
+                    logger.warning(
+                        "Stream #{} in file '{}' 'title' doesn't match any regular expressions from settings. Ignoring".format(stream_info.get('index'), self.input_file))
 
         return False
 
     def custom_stream_mapping(self, stream_info: dict, stream_id: int):
-        """Remove title"""
-        codec_type = stream_info.get('codec_type', '').lower()
+        results = self.test_stream_regex_results(stream_info, stream_id)
+        if results['match']:
+            self.extraoptions += results.get('stream_encoding')
+            self.extraoptions += results.get('extra_options', {})
+        # return nothing so stream will be copied
 
+    def test_stream_regex_results(self, stream_info: dict, stream_id: int):
         match = False
-        globaltitle = []
-        stream_encoding = []
-
-        # TODO check for empty global title
-        if codec_type == 'video':
-            #copy video stream title to global
-            stitle = stream_info.get('tags', {}).get('title')
-            globaltitle = ['-metadata', 'title={}'.format(stitle)]
-
-
-        # TODO move this outside of stream loop
-        config_json = '[{"pattern":"(?i)Original.*Dolby","replace":"Big mode"},{"pattern":"(?i)Commentary.*Dolby","replace":"Farts","disposition":"+comment"}]'
-        title_options = json.loads(config_json)
-
-
-        final_disposition = ''
         title = stream_info.get('tags', {}).get('title')
 
-        # loop over all regex provided in config for matches
-        for title_option in title_options:
-            (title, match_count) = re.subn(title_option.get('pattern'), title_option.get('replace'), title)
+        if title:
+            codec_type = stream_info.get('codec_type', '').lower()
 
-            if match_count:
-                match = True
-                if title_option.get('disposition'):
-                    final_disposition += title_option.get('disposition') + ' '
+            # loop over all regex provided in config for matches
+            final_disposition = ''
 
-        if match:
-            stream_encoding = (['-metadata:s:{}:{}'.format(codec_type[0], stream_id), 'title={}'.format(title)])
-            if final_disposition:
-                self.extraoptions += ['-disposition:{}:{}'.format(codec_type[0], stream_id), final_disposition.strip()]
+            for title_option in self.title_options:
+                (title, match_count) = re.subn(title_option.get('pattern'), title_option.get('replace'), title)
 
-        return {
-            'stream_mapping':  globaltitle,
-            'stream_encoding': stream_encoding
-        }
+                if match_count:
+                    match = True
+                    if title_option.get('disposition'):
+                        final_disposition += title_option.get('disposition') + ' '
+
+            retval = { 'match': match }
+            if match:
+                retval['stream_encoding'] = (['-metadata:s:{}:{}'.format(codec_type[0], stream_id), 'title={}'.format(title)])
+                if final_disposition:
+                    retval['extra_options'] = ['-disposition:{}:{}'.format(codec_type[0], stream_id), final_disposition.strip()]
+
+        return retval
 
     def append_extraoptions(self):
         self.stream_encoding += self.extraoptions
+
+    def set_global_title(self, stream_info: dict):
+        # check for empty global title
+        if stream_info.get('codec_type', '').lower() == 'video' and self.settings.get_setting('copy_video_to_global') and not self.probe.get('title'):
+            # copy video stream title to global
+            stitle = stream_info.get('tags', {}).get('title')
+            if stitle:
+                self.global_title = ['-metadata', 'title={}'.format(stitle)]
 
 def on_library_management_file_test(data):
     """
@@ -187,9 +204,7 @@ def on_library_management_file_test(data):
     # Set the input file
     mapper.set_input_file(abspath)
 
-    # TODO: check global tags
-
-    if mapper.streams_need_processing():
+    if mapper.streams_need_processing() or mapper.global_title or test_single_streams(settings, mapper):
         # Mark this file to be added to the pending tasks
         data['add_file_to_pending_tasks'] = True
         logger.debug("File '{}' should be added to task list. Probe found streams require processing.".format(abspath))
@@ -244,28 +259,16 @@ def on_worker_process(data):
     # Set the input file
     mapper.set_input_file(abspath)
 
-    if mapper.streams_need_processing():
+    if mapper.streams_need_processing() or mapper.global_title or test_single_streams(settings, mapper):
         # Set the output file
         mapper.set_output_file(data.get('file_out'))
-
-        # copy everything
-        mapper.main_options += ['-map', '0', '-c', 'copy']
 
         if settings.get_setting('advanced'):
             mapper.main_options += settings.get_setting('main_options').split()
             mapper.advanced_options += settings.get_setting('advanced_options').split()
 
-        # check global title
-
-        # check for single streams
-        if mapper.video_stream_count == 1:
-            mapper.extraoptions += ['-metadata:s:v:0', 'title=']
-
-        if mapper.audio_stream_count == 1:
-            mapper.extraoptions += ['-metadata:s:a:0', 'title=']
-
-        if mapper.subtitle_stream_count == 1:
-            mapper.extraoptions += ['-metadata:s:s:0', 'title=']
+        # add global title if set
+        mapper.stream_encoding += mapper.global_title
 
         # Append extraoptions
         mapper.append_extraoptions()
@@ -283,3 +286,21 @@ def on_worker_process(data):
         data['command_progress_parser'] = parser.parse_progress
 
     return data
+
+def test_single_streams(settings: Settings, mapper: PluginStreamMapper):
+    # delete title for single streams
+    retval = False
+    if settings.get_setting('delete_singles'):
+        if mapper.video_stream_count == 1 and mapper.stream_title_exists.get('video', False):
+            mapper.extraoptions += ['-metadata:s:v:0', 'title=']
+            retval = True
+
+        if mapper.audio_stream_count == 1 and mapper.stream_title_exists.get('audio', False):
+            mapper.extraoptions += ['-metadata:s:a:0', 'title=']
+            retval = True
+
+        if mapper.subtitle_stream_count == 1 and mapper.stream_title_exists.get('subtitle', False):
+            mapper.extraoptions += ['-metadata:s:s:0', 'title=']
+            retval = True
+
+    return retval
