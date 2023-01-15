@@ -36,7 +36,9 @@ logger = logging.getLogger("Unmanic.Plugin.cleanup_titles")
 
 class Settings(PluginSettings):
     settings = {
-        "languages": '',
+        "copy_video_to_global":  False,
+        "delete_singles":        False,
+        "title_regex":           '',
         "advanced":              False,
         "main_options":          '',
         "advanced_options":      ''
@@ -46,11 +48,19 @@ class Settings(PluginSettings):
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
         self.form_settings = {
-            "languages": {
-                "label": "Languages to remove",
+            "copy_video_to_global": {
+                "label": "Copy video stream title to global title"
             },
+            "delete_singles": {
+                "label": "Delete stream title if only one stream of that type"
+            },
+            "title_regex": {
+                "label":      "Stream title regular expressions",
+                "input_type": "textarea"
+            },
+
             "advanced": {
-                "label": "Write your own FFmpeg params",
+                "label": "Write your own FFmpeg params"
             },
             "main_options":          self.__set_main_options_form_settings(),
             "advanced_options":      self.__set_advanced_options_form_settings()
@@ -159,11 +169,6 @@ def on_library_management_file_test(data):
         settings = Settings(library_id=data.get('library_id'))
     else:
         settings = Settings()
-
-    # If the config is empty (not yet configured) ignore everything
-    if not settings.get_setting('languages'):
-        logger.debug("Plugin has not yet been configured with a list of file extensions to allow. Blocking everything.")
-        return False
 
     # Get the path to the file
     abspath = data.get('path')
