@@ -291,18 +291,20 @@ def on_worker_process(data):
 
 def test_single_streams(settings: Settings, mapper: PluginStreamMapper):
     # delete title for single streams
+    # needs to run after stream mapper counts streams
     retval = False
     if settings.get_setting('delete_singles'):
-        if mapper.video_stream_count == 1 and mapper.stream_title_exists.get('video', False):
-            mapper.extraoptions += ['-metadata:s:v:0', 'title=']
+        # add to start of extraoptions so regex renaming won't be overwritten
+        if mapper.subtitle_stream_count == 1 and mapper.stream_title_exists.get('subtitle', False):
+            mapper.extraoptions = ['-metadata:s:s:0', 'title='] + mapper.extraoptions
             retval = True
 
         if mapper.audio_stream_count == 1 and mapper.stream_title_exists.get('audio', False):
-            mapper.extraoptions += ['-metadata:s:a:0', 'title=']
+            mapper.extraoptions = ['-metadata:s:a:0', 'title='] + mapper.extraoptions
             retval = True
 
-        if mapper.subtitle_stream_count == 1 and mapper.stream_title_exists.get('subtitle', False):
-            mapper.extraoptions += ['-metadata:s:s:0', 'title=']
+        if mapper.video_stream_count == 1 and mapper.stream_title_exists.get('video', False):
+            mapper.extraoptions = ['-metadata:s:v:0', 'title='] + mapper.extraoptions
             retval = True
 
     return retval

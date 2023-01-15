@@ -3,7 +3,7 @@ Select if video stream title should be copied into an empty global file title
 
 Clear stream titles if only one stream of that type. Ex. If only one audio stream, delete its title if one exists.
 
-Regular expression based replacements for stream titles. And optional disposition flags when matches are found. JSON formatted list regular expressions, replacement values and optional dispositions to apply to stream.
+Regular expression based replacements for stream titles. And optional disposition flags when matches are found. JSON formatted list regular expressions, replacement values and optional dispositions to apply to stream. **Replacements take priority over removing single stream titles**
 
 ---
 
