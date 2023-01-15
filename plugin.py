@@ -28,10 +28,10 @@ import json
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
-from remove_audio_stream_by_language.lib.ffmpeg import StreamMapper, Probe, Parser
+from cleanup_titles.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.remove_audio_stream_by_language")
+logger = logging.getLogger("Unmanic.Plugin.cleanup_titles")
 
 
 class Settings(PluginSettings):
