@@ -119,7 +119,7 @@ class PluginStreamMapper(StreamMapper):
                 if self.test_stream_regex_results(stream_info, 0)['match']:
                     return True
                 else:
-                    logger.warning(
+                    logger.debug(
                         "Stream #{} in file '{}' 'title' doesn't match any regular expressions from settings. Ignoring".format(stream_info.get('index'), self.input_file))
 
         return False
