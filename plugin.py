@@ -192,9 +192,18 @@ def on_library_management_file_test(data):
 
     # Get file probe
     probe = Probe(logger, allowed_mimetypes=['video'])
-    if not probe.file(abspath):
+    if 'ffprobe' in data.get('shared_info', {}):
+        if not probe.set_probe(data.get('shared_info', {}).get('ffprobe')):
+            # Failed to set ffprobe from shared info.
+            # Probably due to it being for an incompatible mimetype declared above
+            return
+    elif not probe.file(abspath):
         # File probe failed, skip the rest of this test
-        return data
+        return
+    # Set file probe to shared infor for subsequent file test runners
+    if 'shared_info' not in data:
+        data['shared_info'] = {}
+    data['shared_info']['ffprobe'] = probe.get_probe()
 
     # Get stream mapper
     mapper = PluginStreamMapper()
