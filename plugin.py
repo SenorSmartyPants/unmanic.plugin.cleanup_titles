@@ -129,16 +129,17 @@ class PluginStreamMapper(StreamMapper):
     def custom_stream_mapping(self, stream_info: dict, stream_id: int):
         results = self.test_stream_regex_results(stream_info, stream_id)
         if results['match']:
-            self.extraoptions += results.get('stream_encoding')
-            self.extraoptions += results.get('extra_options', {})
-        # return nothing so stream will be copied
+            return {
+                'stream_mapping':  results.get('stream_mapping'),
+                'stream_encoding': results.get('stream_encoding'),
+            }
 
     def test_stream_regex_results(self, stream_info: dict, stream_id: int):
         match = False
         title = stream_info.get('tags', {}).get('title')
 
         if title:
-            codec_type = stream_info.get('codec_type', '').lower()
+            codec_type = stream_info.get('codec_type', '').lower()[0]
 
             # loop over all regex provided in config for matches
             final_disposition = ''
@@ -153,9 +154,13 @@ class PluginStreamMapper(StreamMapper):
 
             retval = { 'match': match }
             if match:
-                retval['stream_encoding'] = (['-metadata:s:{}:{}'.format(codec_type[0], stream_id), 'title={}'.format(title)])
+                # Map this stream for copy to the destination file
+                retval['stream_mapping'] = ['-map', '0:{}:{}'.format(codec_type, stream_id)]
+                # Add a encoding flag copying this stream
+                retval['stream_encoding'] = ['-c:{}:{}'.format(codec_type, stream_id), 'copy']
+                retval['stream_encoding'] += (['-metadata:s:{}:{}'.format(codec_type, stream_id), 'title={}'.format(title)])
                 if final_disposition:
-                    retval['extra_options'] = ['-disposition:{}:{}'.format(codec_type[0], stream_id), final_disposition.strip()]
+                    retval['stream_encoding'] += ['-disposition:{}:{}'.format(codec_type, stream_id), final_disposition.strip()]
 
         return retval
 
