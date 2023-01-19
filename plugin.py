@@ -117,6 +117,8 @@ class PluginStreamMapper(StreamMapper):
             if self.title_options:
                 # stream_id doesn't matter hear since encodings are not used
                 if self.test_stream_regex_results(stream_info, 0)['match']:
+                    logger.debug(
+                        "Stream #{} in file '{}' 'title' matches a regular expression from settings.".format(stream_info.get('index'), self.input_file))
                     return True
                 else:
                     logger.debug(
